@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四连方探索实验室</title>
+    <script src="https://metis-online.fbcontent.cn/metis-misc/zgLDUdmazTYc0B4K6Cor.js"></script>
+    <script src="https://metis-online.fbcontent.cn/metis-misc/zZZY40t7WJC7UdQCPACm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        :root {
+            --primary: #0A4737;
+            --secondary: #A7DBA9;
+            --bg-light: #D8FBF7;
+            --accent: #FF6421;
+        }
+        body {
+            background-color: #D3E0D9;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0 1rem 1rem 1rem;
+        }
+        @media (min-width: 768px) {
+            body {
+                padding: 0 2rem 2rem 2rem;
+            }
+        }
+        /* 核心修改：缩小左侧16个方格为30px正方形 */
+        .grid-cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(10, 71, 55, 0.1);
+            transition: all 0.2s ease;
+        }
+        .grid-cell.active {
+            background-color: var(--accent);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        /* 核心修改：虚线外框保持正方形，网格匹配缩小后的方格 */
+        #drawing-grid {
+            aspect-ratio: 1/1;
+            width: fit-content;
+            max-width: 100%;
+            display: grid;
+            grid-template-columns: repeat(4, 30px);
+            grid-template-rows: repeat(4, 30px);
+            gap: 3px;
+            background-color: #f3f4f6;
+            padding: 4px;
+            border-radius: 1rem;
+            border: 2px dashed #d1d5db;
+        }
+
+        /* 右侧预览样式（无修改） */
+        .shape-card {
+            background: white;
+            border-radius: 8px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 8px;
+            width: fit-content;
+            margin: 0 auto;
+            user-select: none;
+        }
+        .shape-badge {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: var(--primary);
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .tetromino-preview-container {
+            perspective: 1000px;
+            padding: 0;
+        }
+        .tetromino-preview {
+            display: grid;
+            grid-template-columns: repeat(4, 20px);
+            grid-template-rows: repeat(4, 20px);
+            gap: 1px;
+            transform-origin: center center;
+        }
+        .preview-cell {
+            width: 20px;
+            height: 20px;
+        }
+        .preview-cell.filled {
+            background-color: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* 其余样式（无任何修改） */
+        .control-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #4b5563;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .control-btn:hover {
+            background: var(--secondary);
+            color: var(--primary);
+        }
+        .shape-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0A4737, #2D593E);
+            color: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(10, 71, 55, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* 工具类 */
+        .min-h-screen { min-height: 100vh; }
+        .p-4 { padding: 1rem; }
+        .md\:p-8 { padding: 2rem; }
+        .mt-0 { margin-top: 0; }
+        .max-w-\[1400px\] { max-width: 1400px; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .grid { display: grid; }
+        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        .lg\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+        .gap-8 { gap: 2rem; }
+        .h-\[calc<span data-type="inline-math" data-value="MTAwdmgtNjBweA=="></span>\] { height: calc(100vh - 60px); }
+        .lg\:col-span-4 { grid-column: span 4 / span 4; }
+        .lg\:col-span-8 { grid-column: span 8 / span 8; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-1 { flex: 1 1 0%; }
+        .justify-center { justify-content: center; }
+        .bg-white\/90 { background-color: rgba(255, 255, 255, 0.9); }
+        .rounded-3xl { border-radius: 1.5rem; }
+        .p-10 { padding: 2.5rem; }
+        .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .border { border-width: 1px; }
+        .border-white\/50 { border-color: rgba(255, 255, 255, 0.5); }
+        .mb-10 { margin-bottom: 2.5rem; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .rounded-2xl { border-radius: 1rem; }
+        .border-2 { border-width: 2px; }
+        .border-dashed { border-style: dashed; }
+        .border-gray-300 { border-color: #d1d5db; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .font-bold { font-weight: 700; }
+        .text-sm { font-size: 0.875rem; }
+        .bg-gray-200 { background-color: #e5e7eb; }
+        .text-gray-600 { color: #4b5563; }
+        .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+        .hover\:bg-gray-300:hover { background-color: #d1d5db; }
+        .transition-colors { transition-property: background-color, border-color, color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+        .mt-4 { margin-top: 1rem; }
+        .text-center { text-align: center; }
+        .text-gray-500 { color: #6b7b8a; }
+        .bg-white\/60 { background-color: rgba(255, 255, 255, 0.6); }
+        .p-8 { padding: 2rem; }
+        .min-h-\[500px\] { min-height: 500px; }
+        .border-white\/30 { border-color: rgba(255, 255, 255, 0.3); }
+        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .sm\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .gap-4 { gap: 1rem; }
+        .items-center { align-items: center; }
+        .py-20 { padding-top: 5rem; padding-bottom: 5rem; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-6xl { font-size: 3.75rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .relative { position: relative; }
+        .group:hover .group-hover\:opacity-100 { opacity: 1; }
+        .opacity-0 { opacity: 0; }
+        .transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4, 0, 0, 1); transition-duration: 150ms; }
+        .absolute { position: absolute; }
+        .top-2 { top: 0.5rem; }
+        .right-2 { right: 0.5rem; }
+        .w-6 { width: 1.5rem; }
+        .h-6 { height: 1.5rem; }
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-500 { color: #ef4444; }
+        .rounded-full { border-radius: 9999px; }
+        .cursor-pointer { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <main class="mt-0 max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-60px)]">
+        <!-- 左侧：白色底色区域保持变窄 -->
+        <section class="lg:col-span-4 flex flex-col">
+            <div class="bg-white/90 rounded-3xl p-10 shadow-sm border border-white/50 flex-1 flex flex-col justify-center">
+                <div class="flex justify-center mb-10">
+                    <div id="drawing-grid"></div>
+                </div>
+                <div class="flex gap-3">
+                    <button id="confirm-btn" disabled class="btn-primary flex-1 py-3 rounded-xl font-bold text-sm">确定组合</button>
+                    <button id="clear-btn" class="bg-gray-200 text-gray-600 px-6 py-3 rounded-xl hover:bg-gray-300 transition-colors text-sm">重置</button>
+                </div>
+                <p id="status-msg" class="mt-4 text-center text-sm text-gray-500">请点击网格放置方块 (0/4)</p>
+            </div>
+        </section>
+
+        <!-- 右侧：收集区（无任何修改） -->
+        <section class="lg:col-span-8">
+            <div class="bg-white/60 rounded-3xl p-8 min-h-[500px] border border-white/30">
+                <div id="collection-container" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+                <div id="empty-state" class="flex flex-col items-center justify-center py-20 text-gray-400">
+                    <div class="text-6xl mb-4">🔍</div>
+                    <p>还没有发现新的四连方，快去左边拼一个吧！</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        const gridContainer = document.getElementById('drawing-grid');
+        const confirmBtn = document.getElementById('confirm-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const statusMsg = document.getElementById('status-msg');
+        const collectionContainer = document.getElementById('collection-container');
+        const emptyState = document.getElementById('empty-state');
+
+        let activeCells = [];
+        let collectedShapes = [];
+
+        function initGrid() {
+            for (let i = 0; i < 16; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell bg-white rounded-md cursor-pointer hover:bg-secondary/20';
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => toggleCell(i));
+                gridContainer.appendChild(cell);
+            }
+        }
+
+        function toggleCell(index) {
+            const cell = gridContainer.children[index];
+            if (activeCells.includes(index)) {
+                activeCells = activeCells.filter(i => i !== index);
+                cell.classList.remove('active');
+            } else {
+                if (activeCells.length < 4) {
+                    activeCells.push(index);
+                    cell.classList.add('active');
+                    if (window.anime) {
+                        anime({
+                            targets: cell,
+                            scale: [0.8, 1],
+                            duration: 300,
+                            easing: 'easeOutElastic(1, .8)'
+                        });
+                    }
+                }
+            }
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const count = activeCells.length;
+            const isConnected = checkConnectivity();
+            statusMsg.textContent = `已放置方块: ${count}/4 ${count === 4 && !isConnected ? '(未连通)' : ''}`;
+            confirmBtn.disabled = !(count === 4 && isConnected);
+        }
+
+        function checkConnectivity() {
+            if (activeCells.length === 0) return false;
+            const visited = new Set();
+            const queue = [activeCells[0]];
+            visited.add(activeCells[0]);
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                const r = Math.floor(curr / 4);
+                const c = curr % 4;
+                const neighbors = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+                for (const [nr,nc] of neighbors) {
+                    if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+                        const nIdx = nr * 4 + nc;
+                        if (activeCells.includes(nIdx) && !visited.has(nIdx)) {
+                            visited.add(nIdx);
+                            queue.push(nIdx);
+                        }
+                    }
+                }
+            }
+            return visited.size === activeCells.length;
+        }
+
+        function normalize(coords) {
+            const minX = Math.min(...coords.map(c => c.x));
+            const minY = Math.min(...coords.map(c => c.y));
+            return coords.map(c => ({ x: c.x - minX, y: c.y - minY })).sort((a,b) => a.x - b.x || a.y - b.y);
+        }
+
+        function rotate(coords) {
+            return coords.map(c => ({ x: -c.y, y: c.x }));
+        }
+
+        function flip(coords) {
+            return coords.map(c => ({ x: -c.x, y: c.y }));
+        }
+
+        function getNormalizedKey(coords) {
+            let variants = [];
+            let current = [...coords];
+            for (let r = 0; r < 4; r++) {
+                variants.push(JSON.stringify(normalize(current)));
+                variants.push(JSON.stringify(normalize(flip(current))));
+                current = rotate(current);
+            }
+            return [...new Set(variants)][0];
+        }
+
+        confirmBtn.addEventListener('click', () => {
+            const coords = activeCells.map(idx => ({ x: idx % 4, y: Math.floor(idx / 4) }));
+            const shapeKey = getNormalizedKey(coords);
+            if (!collectedShapes.includes(shapeKey)) {
+                collectedShapes.push(shapeKey);
+                addShapeToCollection(normalize(coords));
+            } else {
+                statusMsg.textContent = "这个形状已经收集过啦！试试其他组合~";
+                setTimeout(() => updateStatus(), 1500);
+            }
+            resetGrid();
+        });
+
+        function addShapeToCollection(initialCoords) {
+            emptyState.classList.add('hidden');
+            const card = document.createElement('div');
+            card.className = 'shape-card bg-white p-4 flex flex-col items-center gap-3 relative group';
+            let currentCoords = [...initialCoords];
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'tetromino-preview-container';
+            const preview = document.createElement('div');
+            preview.className = 'tetromino-preview';
+            previewContainer.appendChild(preview);
+            
+            const renderPreview = (coords) => {
+                preview.innerHTML = '';
+                const normalized = normalize(coords);
+                const maxX = Math.max(...normalized.map(c => c.x));
+                const maxY = Math.max(...normalized.map(c => c.y));
+                const offsetX = Math.floor((3 - maxX) / 2);
+                const offsetY = Math.floor((3 - maxY) / 2);
+                const centered = normalized.map(c => ({ x: c.x + offsetX, y: c.y + offsetY }));
+                const avgX = centered.reduce((s,c) => s + c.x, 0) / 4;
+                const avgY = centered.reduce((s,c) => s + c.y, 0) / 4;
+                preview.style.transformOrigin = `${(avgX+0.5)*22}px ${(avgY+0.5)*22}px`;
+                for (let i=0;i<16;i++) {
+                    const r = Math.floor(i/4), c = i%4;
+                    const cell = document.createElement('div');
+                    cell.className = 'preview-cell' + (centered.some(nc => nc.x === c && nc.y === r) ? ' filled' : '');
+                    preview.appendChild(cell);
+                }
+            };
+            renderPreview(currentCoords);
+
+            // 序号徽章
+            const badge = document.createElement('div');
+            badge.className = 'shape-badge';
+            card.appendChild(badge);
+
+            // 删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '×';
+            deleteBtn.className = 'absolute top-2 right-2 w-6 h-6 bg-red-100 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center';
+            deleteBtn.onclick = () => {
+                card.remove();
+                const shapeKey = getNormalizedKey(currentCoords);
+                const idx = collectedShapes.indexOf(shapeKey);
+                if (idx !== -1) collectedShapes.splice(idx, 1);
+                if (collectionContainer.children.length === 0) emptyState.classList.remove('hidden');
+                updateNumbers();
+            };
+
+            card.appendChild(previewContainer);
+            card.appendChild(deleteBtn);
+            collectionContainer.appendChild(card);
+            
+            // 入场动画
+            if (window.anime) {
+                anime({ targets: card, scale: [0.5,1], opacity: [0,1], duration: 500, easing: 'easeOutBack' });
+            }
+            
+            // 更新序号
+            updateNumbers();
+        }
+
+        function updateNumbers() {
+            const cards = collectionContainer.querySelectorAll('.shape-card');
+            cards.forEach((card, idx) => {
+                const badge = card.querySelector('.shape-badge');
+                if (badge) badge.textContent = idx + 1;
+            });
+        }
+
+        function resetGrid() {
+            activeCells = [];
+            Array.from(gridContainer.children).forEach(cell => cell.classList.remove('active'));
+            updateStatus();
+        }
+
+        clearBtn.addEventListener('click', resetGrid);
+        initGrid();
+    </script>
+</body>
+</html>
